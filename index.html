@@ -235,10 +235,20 @@
             ]
         };
 
-        const activeTiles = new Set();
-        const tileNotes = {}; 
+        let activeTiles = new Set();
+        let tileNotes = {}; 
         let currentEditingId = null;
         let currentEditingElement = null;
+
+        function getTodayString() {
+            const t = new Date();
+            return `${t.getFullYear()}-${t.getMonth()+1}-${t.getDate()}`;
+        }
+        function getYesterdayString() {
+            const d = new Date();
+            d.setDate(d.getDate() - 1);
+            return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+        }
 
         function getDailySelectionSeeded(list, count) {
             const today = new Date();
@@ -256,7 +266,38 @@
         const todaysGrounding = getDailySelectionSeeded(groundingPool, 3);
         const todaysTruth = truthPool; 
 
+        // SAVING STATE ENGINE
+        function saveCurrentStateToStorage() {
+            const state = {
+                date: getTodayString(),
+                activeTiles: Array.from(activeTiles),
+                tileNotes: tileNotes
+            };
+            localStorage.setItem('jg_daily_grid_state', JSON.stringify(state));
+        }
+
+        function loadStateFromStorage() {
+            const savedData = localStorage.getItem('jg_daily_grid_state');
+            if (!savedData) return;
+
+            try {
+                const state = JSON.parse(savedData);
+                // Only load if the saved state is from today
+                if (state.date === getTodayString()) {
+                    activeTiles = new Set(state.activeTiles);
+                    tileNotes = state.tileNotes || {};
+                } else {
+                    // Wipe old day's selections but keep the streaks intact
+                    localStorage.removeItem('jg_daily_grid_state');
+                }
+            } catch (e) {
+                console.error("Error loading saved tiles", e);
+            }
+        }
+
         function buildGrids() {
+            loadStateFromStorage();
+
             const goalGrid = document.getElementById('goalGrid');
             todaysGoals.forEach(item => goalGrid.appendChild(createTileElement(item, 'goal')));
 
@@ -275,6 +316,14 @@
             div.id = `tile-${item.id}`;
             div.innerHTML = `<span class="note-indicator">📝</span><span class="emoji">${item.emoji}</span><span class="label">${item.label}</span>`;
             
+            // Reapply visuals if loaded from memory
+            if (activeTiles.has(item.id)) {
+                div.classList.add('active');
+                if (tileNotes[item.id]) {
+                    div.classList.add('has-note');
+                }
+            }
+
             div.addEventListener('click', () => {
                 if (activeTiles.has(item.id)) {
                     activeTiles.delete(item.id);
@@ -285,9 +334,11 @@
                     if (item.id === 'swap_habit') {
                         removeStreakCompletionForToday();
                     }
+                    saveCurrentStateToStorage();
                 } else {
                     activeTiles.add(item.id);
                     div.classList.add('active');
+                    saveCurrentStateToStorage();
                     
                     if (type === 'truth') {
                         openQuoteOverlay(item);
@@ -336,12 +387,16 @@
             if (text) {
                 tileNotes[currentEditingId] = text;
                 currentEditingElement.classList.add('has-note');
+            } else {
+                delete tileNotes[currentEditingId];
+                currentEditingElement.classList.remove('has-note');
             }
             
             if (currentEditingId === 'swap_habit') {
                 processHabitStreakWin();
             }
             
+            saveCurrentStateToStorage();
             closeOverlay('noteOverlay');
         }
 
@@ -352,16 +407,6 @@
         }
 
         /* STREAK ENGINE */
-        function getTodayString() {
-            const t = new Date();
-            return `${t.getFullYear()}-${t.getMonth()+1}-${t.getDate()}`;
-        }
-        function getYesterdayString() {
-            const d = new Date();
-            d.setDate(d.getDate() - 1);
-            return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
-        }
-
         function processHabitStreakWin() {
             const todayStr = getTodayString();
             const lastSavedDate = localStorage.getItem('jg_last_swap_date');
@@ -404,8 +449,7 @@
             }
         }
 
-function copyResults() {
-            // Error protection: gather all available items safely
+        function copyResults() {
             const allItems = [...todaysGoals, ...todaysGrounding, ...todaysTruth];
             const totalItems = allItems.length;
             
@@ -419,7 +463,6 @@ function copyResults() {
                     row.push('⬜');
                 }
                 
-                // Perfectly break the emojis into a clean 3x3 grid layout
                 if ((index + 1) % 3 === 0 || index === allItems.length - 1) {
                     shareText += row.join(' ') + '\n';
                     row = [];
@@ -437,7 +480,6 @@ function copyResults() {
 
             const toast = document.getElementById('toast');
 
-            // Modern mobile sharing backup
             if (navigator.share) {
                 navigator.share({
                     title: 'My Joy Grid',
@@ -449,7 +491,6 @@ function copyResults() {
                     console.log('Share dismissed');
                 });
             } else {
-                // Classic clipboard copy fallback
                 navigator.clipboard.writeText(shareText).then(() => {
                     toast.innerText = "Copied to clipboard! Text it to a friend.";
                     setTimeout(() => toast.innerText = "", 3000);
@@ -459,6 +500,7 @@ function copyResults() {
                 });
             }
         }
+
         buildGrids();
     </script>
 </body>
