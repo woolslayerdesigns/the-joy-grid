@@ -265,11 +265,15 @@
 
             const tGrid = document.getElementById('truthGrid');
             todaysTruth.forEach(item => tGrid.appendChild(createTileElement(item, 'truth')));
+            
+            // Check memory for a pre-existing streak to keep layout accurate on reload
+            updateStreakDisplayOnly();
         }
 
         function createTileElement(item, type) {
             const div = document.createElement('div');
             div.className = `tile ${type}`;
+            div.id = `tile-${item.id}`;
             div.innerHTML = `<span class="note-indicator">📝</span><span class="emoji">${item.emoji}</span><span class="label">${item.label}</span>`;
             
             div.addEventListener('click', () => {
@@ -278,6 +282,11 @@
                     delete tileNotes[item.id];
                     div.classList.remove('active');
                     div.classList.remove('has-note');
+                    
+                    // If turning off the swap tile, break/reduce active day state
+                    if (item.id === 'swap_habit') {
+                        removeStreakCompletionForToday();
+                    }
                 } else {
                     activeTiles.add(item.id);
                     div.classList.add('active');
@@ -319,6 +328,12 @@
                 tileNotes[currentEditingId] = text;
                 currentEditingElement.classList.add('has-note');
             }
+            
+            // IF tracking the habit swap, calculate the streak engine live!
+            if (currentEditingId === 'swap_habit') {
+                processHabitStreakWin();
+            }
+            
             closeOverlay('noteOverlay');
         }
 
@@ -326,6 +341,59 @@
             document.getElementById(id).style.display = 'none';
             currentEditingId = null;
             currentEditingElement = null;
+        }
+
+        /* 🧠 STREAK ENGINE FUNCTIONS */
+        function getTodayString() {
+            const t = new Date();
+            return `${t.getFullYear()}-${t.getMonth()+1}-${t.getDate()}`;
+        }
+        function getYesterdayString() {
+            const d = new Date();
+            d.setDate(d.getDate() - 1);
+            return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+        }
+
+        function processHabitStreakWin() {
+            const todayStr = getTodayString();
+            const lastSavedDate = localStorage.getItem('jg_last_swap_date');
+            let currentStreak = parseInt(localStorage.getItem('jg_swap_streak') || '0');
+
+            if (lastSavedDate === todayStr) {
+                return; // Already calculated today
+            } else if (lastSavedDate === getYesterdayString()) {
+                currentStreak += 1; // Kept chain alive
+            } else {
+                currentStreak = 1; // Chain broken or brand new
+            }
+
+            localStorage.setItem('jg_last_swap_date', todayStr);
+            localStorage.setItem('jg_swap_streak', currentStreak.toString());
+            updateStreakDisplayOnly();
+        }
+
+        function removeStreakCompletionForToday() {
+            const lastSavedDate = localStorage.getItem('jg_last_swap_date');
+            if (lastSavedDate === getTodayString()) {
+                localStorage.removeItem('jg_last_swap_date');
+                let currentStreak = parseInt(localStorage.getItem('jg_swap_streak') || '1');
+                currentStreak = Math.max(0, currentStreak - 1);
+                localStorage.setItem('jg_swap_streak', currentStreak.toString());
+                updateStreakDisplayOnly();
+            }
+        }
+
+        function updateStreakDisplayOnly() {
+            const streak = localStorage.getItem('jg_swap_streak') || '0';
+            const swapTile = document.getElementById('tile-swap_habit');
+            if (swapTile) {
+                const labelElement = swapTile.querySelector('.label');
+                if (parseInt(streak) > 0) {
+                    labelElement.innerText = `Swap 🔥 ${streak}`;
+                } else {
+                    labelElement.innerText = `Mindful Swap`;
+                }
+            }
         }
 
         function copyResults() {
@@ -348,7 +416,15 @@
                 }
             });
 
-            shareText += `\nFound beauty in ${activeTiles.size}/${totalItems} moments today.\njoygrid.app`;
+            shareText += `\nFound beauty in ${activeTiles.size}/${totalItems} moments today.\n`;
+            
+            // Append the streak directly into the text share score!
+            const currentStreak = parseInt(localStorage.getItem('jg_swap_streak') || '0');
+            if (currentStreak > 0) {
+                shareText += `🔄 Swap Streak: 🔥 ${currentStreak} days!\n`;
+            }
+            
+            shareText += `thejoygrid.com`;
 
             navigator.clipboard.writeText(shareText).then(() => {
                 const toast = document.getElementById('toast');
