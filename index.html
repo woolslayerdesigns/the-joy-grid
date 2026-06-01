@@ -266,7 +266,6 @@
             const tGrid = document.getElementById('truthGrid');
             todaysTruth.forEach(item => tGrid.appendChild(createTileElement(item, 'truth')));
             
-            // Check memory for a pre-existing streak to keep layout accurate on reload
             updateStreakDisplayOnly();
         }
 
@@ -283,7 +282,6 @@
                     div.classList.remove('active');
                     div.classList.remove('has-note');
                     
-                    // If turning off the swap tile, break/reduce active day state
                     if (item.id === 'swap_habit') {
                         removeStreakCompletionForToday();
                     }
@@ -304,10 +302,21 @@
         function openNoteOverlay(item, element) {
             currentEditingId = item.id;
             currentEditingElement = element;
-            document.getElementById('noteTitle').innerText = `${item.emoji} ${item.label}`;
-            document.getElementById('noteInput').value = tileNotes[item.id] || "";
+            
+            const titleField = document.getElementById('noteTitle');
+            const inputField = document.getElementById('noteInput');
+
+            if (item.id === 'swap_habit') {
+                titleField.innerText = `💧 Mindful Swap Tracker`;
+                inputField.placeholder = "What did you choose instead of the old habit? Log your choice to grow your daily streak... 🔥";
+            } else {
+                titleField.innerText = `📝 ${item.emoji} ${item.label}`;
+                inputField.placeholder = "Write a tiny reflection about this moment...";
+            }
+            
+            inputField.value = tileNotes[item.id] || "";
             document.getElementById('noteOverlay').style.display = 'flex';
-            document.getElementById('noteInput').focus();
+            inputField.focus();
         }
 
         function openQuoteOverlay(item) {
@@ -329,7 +338,6 @@
                 currentEditingElement.classList.add('has-note');
             }
             
-            // IF tracking the habit swap, calculate the streak engine live!
             if (currentEditingId === 'swap_habit') {
                 processHabitStreakWin();
             }
@@ -343,7 +351,7 @@
             currentEditingElement = null;
         }
 
-        /* 🧠 STREAK ENGINE FUNCTIONS */
+        /* STREAK ENGINE */
         function getTodayString() {
             const t = new Date();
             return `${t.getFullYear()}-${t.getMonth()+1}-${t.getDate()}`;
@@ -360,11 +368,11 @@
             let currentStreak = parseInt(localStorage.getItem('jg_swap_streak') || '0');
 
             if (lastSavedDate === todayStr) {
-                return; // Already calculated today
+                return; 
             } else if (lastSavedDate === getYesterdayString()) {
-                currentStreak += 1; // Kept chain alive
+                currentStreak += 1; 
             } else {
-                currentStreak = 1; // Chain broken or brand new
+                currentStreak = 1; 
             }
 
             localStorage.setItem('jg_last_swap_date', todayStr);
@@ -418,7 +426,6 @@
 
             shareText += `\nFound beauty in ${activeTiles.size}/${totalItems} moments today.\n`;
             
-            // Append the streak directly into the text share score!
             const currentStreak = parseInt(localStorage.getItem('jg_swap_streak') || '0');
             if (currentStreak > 0) {
                 shareText += `🔄 Swap Streak: 🔥 ${currentStreak} days!\n`;
