@@ -404,12 +404,13 @@
             }
         }
 
-        function copyResults() {
-            const totalItems = todaysGoals.length + todaysGrounding.length + todaysTruth.length;
-            let shareText = `Joy Grid ☀️\n`;
-            
-            let row = [];
+function copyResults() {
+            // Error protection: gather all available items safely
             const allItems = [...todaysGoals, ...todaysGrounding, ...todaysTruth];
+            const totalItems = allItems.length;
+            
+            let shareText = `Joy Grid ☀️\n`;
+            let row = [];
             
             allItems.forEach((item, index) => {
                 if (activeTiles.has(item.id)) {
@@ -418,6 +419,7 @@
                     row.push('⬜');
                 }
                 
+                // Perfectly break the emojis into a clean 3x3 grid layout
                 if ((index + 1) % 3 === 0 || index === allItems.length - 1) {
                     shareText += row.join(' ') + '\n';
                     row = [];
@@ -433,15 +435,30 @@
             
             shareText += `thejoygrid.com`;
 
-            navigator.clipboard.writeText(shareText).then(() => {
-                const toast = document.getElementById('toast');
-                toast.innerText = "Copied to clipboard! Text it to a friend.";
-                setTimeout(() => toast.innerText = "", 3000);
-            }).catch(err => {
-                console.error('Could not copy text: ', err);
-            });
-        }
+            const toast = document.getElementById('toast');
 
+            // Modern mobile sharing backup
+            if (navigator.share) {
+                navigator.share({
+                    title: 'My Joy Grid',
+                    text: shareText
+                }).then(() => {
+                    toast.innerText = "Shared successfully!";
+                    setTimeout(() => toast.innerText = "", 3000);
+                }).catch(err => {
+                    console.log('Share dismissed');
+                });
+            } else {
+                // Classic clipboard copy fallback
+                navigator.clipboard.writeText(shareText).then(() => {
+                    toast.innerText = "Copied to clipboard! Text it to a friend.";
+                    setTimeout(() => toast.innerText = "", 3000);
+                }).catch(err => {
+                    toast.innerText = "Oops, try again!";
+                    console.error('Could not copy text: ', err);
+                });
+            }
+        }
         buildGrids();
     </script>
 </body>
