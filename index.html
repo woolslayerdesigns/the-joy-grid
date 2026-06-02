@@ -102,7 +102,19 @@
         }
         .popup-card h3 { margin-top: 0; display: flex; align-items: center; gap: 8px; }
         
-        /* Note UI */
+        /* Note UI & Behavioral Insight Text */
+        .insight-box {
+            background: #f0f7ff;
+            border-left: 4px solid #42a5f5;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: #1e88e5;
+            margin-bottom: 15px;
+            font-style: italic;
+        }
+
         .popup-card textarea {
             width: 100%; height: 100px;
             border: 2px solid #e2e8f0; border-radius: 12px;
@@ -173,6 +185,7 @@
     <div class="overlay" id="noteOverlay">
         <div class="popup-card">
             <h3 id="noteTitle">📝 Add Note</h3>
+            <div id="insightContainer" class="insight-box" style="display: none;"></div>
             <textarea id="noteInput" placeholder="Write a tiny reflection about this moment..."></textarea>
             <div class="btn-group">
                 <button onclick="saveNote()">Save Moment</button>
@@ -199,22 +212,48 @@
             { id: 'swap_habit', emoji: '💧', label: 'Mindful Swap' }
         ];
 
+        // EXPANDED MOMENTS OF JOY POOL (20 Items)
         const groundingPool = [
             { id: 'nature', emoji: '🌿', label: 'In Nature' },
-            { id: 'friend', emoji: '💬', label: 'Time w/ Friend' },
-            { id: 'reading', emoji: '📖', label: 'Reading' },
-            { id: 'music', emoji: '🎹', label: 'Playing Music' },
-            { id: 'poem', emoji: '📝', label: 'Poetry Line' },
+            { id: 'friend', emoji: '💬', label: 'Text a Friend' },
+            { id: 'reading', emoji: '📖', label: 'Read a Book' },
+            { id: 'music', emoji: '🎹', label: 'Enjoy Music' },
+            { id: 'poem', emoji: '📝', label: 'Poetry' },
             { id: 'drawing', emoji: '🎨', label: 'Create' },
             { id: 'dance', emoji: '💃', label: 'Living Room Dance' },
             { id: 'animal', emoji: '🐾', label: 'Animal Connect' },
-            { id: 'learn', emoji: '💡', label: 'Learn Something' }
+            { id: 'learn', emoji: '💡', label: 'Learn Something' },
+            { id: 'warm_cup', emoji: '☕', label: 'Warm Cup' },
+            { id: 'catch_light', emoji: '🌅', label: 'Catch the Light' },
+            { id: 'fresh_slate', emoji: '🧼', label: 'Fresh Slate' },
+            { id: 'birds', emoji: '🦅', label: 'Bird Watching' },
+            { id: 'plant', emoji: '🌱', label: 'Tend to a Plant' },
+            { id: 'candle', emoji: '🕯️', label: 'Light a Candle' },
+            { id: 'breaths', emoji: '🌬️', label: '5 Slow Breaths' },
+            { id: 'strength', emoji: '💪', label: 'Build Strength' },
+            { id: 'mobility', emoji: '🧘‍♀️', label: 'Stretch' },
+            { id: 'yoga', emoji: '🧘‍♀️', label: 'Do Some Down Dogs' },
+            { id: 'sky', emoji: '☁️', label: 'Look at Clouds' }
+            { id: 'candle', emoji: '🕯️', label: 'A Sacred Space' },
+            { id: 'moment_for_me', emoji: '✨', label: 'A Moment for Me' },
+            { id: 'stroll', emoji: '🚶‍♀️', label: 'Take a Short Stroll' },
         ];
 
         const truthPool = [
             { id: 'philosophy', emoji: '🏛️', label: 'Study Philosophy' },
             { id: 'universe', emoji: '🌌', label: 'Contemplate Stars' },
             { id: 'love', emoji: '❤️', label: 'Love' }
+        ];
+
+        // BEHAVIORAL INSIGHTS BANK FOR MINDFUL SWAP
+        const swapInsights = [
+            "Shifting your environment for just 5 minutes completely resets a behavioral urge. Way to break the loop!",
+            "Urge Surfing: Brain cravings peak at about 10 minutes. By choosing a swap, you successfully rode the wave.",
+            "Every time you choose a new path, your brain strengthens a tiny neural bridge called neuroplasticity. You're rewiring!",
+            "Habit loops require a Cue, a Routine, and a Reward. You successfully intercepted the routine today.",
+            "Dopamine loves novelty. Giving yourself a healthy swap scratches the brain's itch for something different.",
+            "Taking a conscious pause switches your brain from its fast, reactive emotional center to your calm, logic center.",
+            "Be proud of today's choice. Small behavioral pivots add up to massive lifestyle transformations over time."
         ];
 
         const quoteBank = {
@@ -266,7 +305,6 @@
         const todaysGrounding = getDailySelectionSeeded(groundingPool, 3);
         const todaysTruth = truthPool; 
 
-        // SAVING STATE ENGINE
         function saveCurrentStateToStorage() {
             const state = {
                 date: getTodayString(),
@@ -282,12 +320,10 @@
 
             try {
                 const state = JSON.parse(savedData);
-                // Only load if the saved state is from today
                 if (state.date === getTodayString()) {
                     activeTiles = new Set(state.activeTiles);
                     tileNotes = state.tileNotes || {};
                 } else {
-                    // Wipe old day's selections but keep the streaks intact
                     localStorage.removeItem('jg_daily_grid_state');
                 }
             } catch (e) {
@@ -316,7 +352,6 @@
             div.id = `tile-${item.id}`;
             div.innerHTML = `<span class="note-indicator">📝</span><span class="emoji">${item.emoji}</span><span class="label">${item.label}</span>`;
             
-            // Reapply visuals if loaded from memory
             if (activeTiles.has(item.id)) {
                 div.classList.add('active');
                 if (tileNotes[item.id]) {
@@ -356,13 +391,21 @@
             
             const titleField = document.getElementById('noteTitle');
             const inputField = document.getElementById('noteInput');
+            const insightBox = document.getElementById('insightContainer');
 
             if (item.id === 'swap_habit') {
                 titleField.innerText = `💧 Mindful Swap Tracker`;
-                inputField.placeholder = "What did you choose instead of the old habit? Log your choice to grow your daily streak... 🔥";
+                inputField.placeholder = "What did you choose instead? Log your alternative option to lock in your daily streak... 🔥";
+                
+                // Fetch daily seeded insight for the swap tracker
+                const today = new Date();
+                const insightIndex = (today.getDate()) % swapInsights.length;
+                insightBox.innerText = `🧠 Insight: ${swapInsights[insightIndex]}`;
+                insightBox.style.display = 'block';
             } else {
                 titleField.innerText = `📝 ${item.emoji} ${item.label}`;
                 inputField.placeholder = "Write a tiny reflection about this moment...";
+                insightBox.style.display = 'none';
             }
             
             inputField.value = tileNotes[item.id] || "";
@@ -406,7 +449,6 @@
             currentEditingElement = null;
         }
 
-        /* STREAK ENGINE */
         function processHabitStreakWin() {
             const todayStr = getTodayString();
             const lastSavedDate = localStorage.getItem('jg_last_swap_date');
